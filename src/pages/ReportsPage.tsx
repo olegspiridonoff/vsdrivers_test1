@@ -9,7 +9,7 @@ import { Alert, SelectInput } from '../components/ui/primitives';
 
 export default function ReportsPage() {
   const { user, users } = useAuth();
-  const { reports, addReport, updateReport, deleteReport, getEditLogsByReport } = useData();
+  const { reports, loading, addReport, updateReport, deleteReport, getEditLogsByReport } = useData();
   const [showForm, setShowForm] = useState(false);
   const [editingReport, setEditingReport] = useState<WeeklyReport | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<string>(user?.role === 'driver' ? user.id : 'all');
@@ -27,13 +27,17 @@ export default function ReportsPage() {
     return [...filtered].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [reports, user, selectedDriver]);
 
-  const handleSave = (data: ReportDraft) => {
+  const handleSave = async (data: ReportDraft) => {
     setError('');
     if (editingReport) {
-      updateReport(editingReport.id, data, user!.id);
+      const result = await updateReport(editingReport.id, data, user!.id);
+      if (!result.success) {
+        setError(result.error || 'Не удалось сохранить отчёт');
+        return;
+      }
       setEditingReport(null);
     } else {
-      const result = addReport(data);
+      const result = await addReport(data);
       if (!result.success) {
         setError(result.error || 'Ошибка');
         return;
@@ -42,11 +46,16 @@ export default function ReportsPage() {
     setShowForm(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Удалить этот отчёт?')) {
-      deleteReport(id);
+      const result = await deleteReport(id);
+      if (!result.success) setError(result.error || 'Не удалось удалить отчёт');
     }
   };
+
+  if (loading && reports.length === 0) {
+    return <p className="text-gray-400">Загрузка отчётов…</p>;
+  }
 
   if (showForm || editingReport) {
     return (

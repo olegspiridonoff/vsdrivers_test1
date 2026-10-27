@@ -12,26 +12,32 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setBusy(true);
 
-    if (isRegister) {
-      const result = register(username, email, password, 'driver');
-      if (!result.success) {
-        setError(result.error || 'Ошибка регистрации');
+    try {
+      if (isRegister) {
+        const result = await register(username, email, password, 'driver');
+        if (!result.success) {
+          setError(result.error || 'Ошибка регистрации');
+        } else {
+          setSuccess('Регистрация успешна! Теперь войдите.');
+          setIsRegister(false);
+          setUsername('');
+        }
       } else {
-        setSuccess('Регистрация успешна! Теперь войдите.');
-        setIsRegister(false);
-        setUsername('');
+        const result = await login(email, password);
+        if (!result.success) {
+          setError(result.error || 'Ошибка входа');
+        }
       }
-    } else {
-      const result = login(email, password);
-      if (!result.success) {
-        setError(result.error || 'Ошибка входа');
-      }
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -86,9 +92,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-gray-900 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-amber-500/20"
+              disabled={busy}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed text-gray-900 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-amber-500/20"
             >
-              {isRegister ? 'Зарегистрироваться' : 'Войти'}
+              {busy ? 'Проверяем…' : isRegister ? 'Зарегистрироваться' : 'Войти'}
             </button>
           </form>
 

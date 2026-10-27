@@ -11,9 +11,19 @@ import { Car, LayoutDashboard, FileText, BarChart3, Users, LogOut, Menu, X } fro
 type Page = 'dashboard' | 'reports' | 'analytics' | 'users';
 
 function AppContent() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Пока AuthProvider загружает пользователей/восстанавливает сессию,
+  // показываем заглушку вместо страницы входа (иначе она «мигает»).
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <p className="text-gray-400">Загрузка…</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return <LoginPage />;

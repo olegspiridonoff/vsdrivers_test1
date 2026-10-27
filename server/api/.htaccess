@@ -1,0 +1,4 @@
+# Apache: все запросы внутри /api идут через index.php
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]

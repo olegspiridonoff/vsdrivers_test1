@@ -17,7 +17,7 @@ export type ReportDraft = Omit<WeeklyReport, 'id' | 'created_at' | 'updated_at'>
 interface ReportFormProps {
   report?: WeeklyReport;
   userId: string;
-  onSave: (data: ReportDraft) => void;
+  onSave: (data: ReportDraft) => void | Promise<void>;
   onCancel: () => void;
 }
 

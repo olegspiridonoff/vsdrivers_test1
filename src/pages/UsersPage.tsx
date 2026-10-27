@@ -29,14 +29,14 @@ export default function UsersPage() {
     setRole('driver');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (editingUser) {
-      updateUser(editingUser.id, { username, email, role });
+      await updateUser(editingUser.id, { username, email, role });
     } else {
-      const result = register(username, email, password, role);
+      const result = await register(username, email, password, role);
       if (!result.success) {
         setError(result.error || 'Ошибка');
         return;
@@ -53,13 +53,14 @@ export default function UsersPage() {
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (id === currentUser?.id) {
       setError('Нельзя удалить свой аккаунт');
       return;
     }
     if (confirm('Удалить пользователя?')) {
-      deleteUser(id);
+      const result = await deleteUser(id);
+      if (!result.success) setError(result.error || 'Не удалось удалить пользователя');
     }
   };
 

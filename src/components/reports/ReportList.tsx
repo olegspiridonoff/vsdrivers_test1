@@ -9,7 +9,7 @@ interface ReportListProps {
   currentRole: Role;
   getLogs: (reportId: string) => ReportEditLog[];
   onEdit: (report: WeeklyReport) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void | Promise<void>;
 }
 
 export default function ReportList({ reports, users, currentRole, getLogs, onEdit, onDelete }: ReportListProps) {
