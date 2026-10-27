@@ -6,9 +6,8 @@ import { formatCurrency, payoutBySource } from '../utils/calculations';
 import { User } from '../types';
 
 export default function DashboardPage() {
-  const { user, getAllUsers } = useAuth();
+  const { user, users } = useAuth();
   const { reports } = useData();
-  const users = getAllUsers();
 
   const stats = useMemo(() => {
     const userReports = user?.role === 'driver'

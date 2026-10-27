@@ -9,9 +9,8 @@ import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
 export default function AnalyticsPage() {
-  const { user, getAllUsers } = useAuth();
+  const { user, users: allUsers } = useAuth();
   const { reports } = useData();
-  const allUsers = getAllUsers();
   const drivers = allUsers.filter(u => u.role === 'driver');
 
   const [filterDriver, setFilterDriver] = useState('all');

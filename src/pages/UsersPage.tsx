@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Role } from '../types';
 import { UserPlus, Trash2, Edit2, Shield, X, Check } from 'lucide-react';
+import { Alert, Field, TextInput, SelectInput, RoleBadge, roleLabel } from '../components/ui/primitives';
+
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: 'driver', label: roleLabel('driver') },
+  { value: 'manager', label: roleLabel('manager') },
+  { value: 'admin', label: roleLabel('admin') },
+];
 
 export default function UsersPage() {
-  const { getAllUsers, register, updateUser, deleteUser, user: currentUser } = useAuth();
+  const { users, register, updateUser, deleteUser, user: currentUser } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [username, setUsername] = useState('');
@@ -13,7 +20,14 @@ export default function UsersPage() {
   const [role, setRole] = useState<Role>('driver');
   const [error, setError] = useState('');
 
-  const users = getAllUsers();
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingUser(null);
+    setUsername('');
+    setEmail('');
+    setPassword('');
+    setRole('driver');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +35,6 @@ export default function UsersPage() {
 
     if (editingUser) {
       updateUser(editingUser.id, { username, email, role });
-      setEditingUser(null);
     } else {
       const result = register(username, email, password, role);
       if (!result.success) {
@@ -29,11 +42,7 @@ export default function UsersPage() {
         return;
       }
     }
-    setShowForm(false);
-    setUsername('');
-    setEmail('');
-    setPassword('');
-    setRole('driver');
+    resetForm();
   };
 
   const handleEdit = (u: User) => {
@@ -54,39 +63,17 @@ export default function UsersPage() {
     }
   };
 
-  const getRoleBadge = (role: Role) => {
-    const styles: Record<Role, string> = {
-      admin: 'bg-red-500/20 text-red-400 border-red-500/30',
-      manager: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      driver: 'bg-green-500/20 text-green-400 border-green-500/30'
-    };
-    const labels: Record<Role, string> = {
-      admin: 'Администратор',
-      manager: 'Руководитель',
-      driver: 'Водитель'
-    };
-    return (
-      <span className={`px-2 py-0.5 rounded-full text-xs border ${styles[role]}`}>
-        {labels[role]}
-      </span>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">Управление пользователями</h1>
-        <button onClick={() => { setShowForm(true); setEditingUser(null); setUsername(''); setEmail(''); setPassword(''); }}
+        <button onClick={() => { resetForm(); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium rounded-lg transition-all">
           <UserPlus className="w-4 h-4" /> Добавить
         </button>
       </div>
 
-      {error && (
-        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+      <Alert kind="error" message={error} />
 
       {showForm && (
         <div className="bg-gray-800/50 backdrop-blur border border-gray-700/50 rounded-xl p-6">
@@ -95,38 +82,26 @@ export default function UsersPage() {
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Имя</label>
-                <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" required />
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" required />
-              </div>
+              <Field label="Имя">
+                <TextInput type="text" value={username} onChange={e => setUsername(e.target.value)} required />
+              </Field>
+              <Field label="Email">
+                <TextInput type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+              </Field>
               {!editingUser && (
-                <div>
-                  <label className="text-gray-400 text-sm mb-1 block">Пароль</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" required />
-                </div>
+                <Field label="Пароль">
+                  <TextInput type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                </Field>
               )}
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Роль</label>
-                <select value={role} onChange={e => setRole(e.target.value as Role)}
-                  className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50">
-                  <option value="driver">Водитель</option>
-                  <option value="manager">Руководитель</option>
-                  <option value="admin">Администратор</option>
-                </select>
-              </div>
+              <Field label="Роль">
+                <SelectInput value={role} onChange={e => setRole(e.target.value as Role)} options={ROLE_OPTIONS} />
+              </Field>
             </div>
             <div className="flex gap-3">
               <button type="submit" className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium rounded-lg transition-all">
                 <Check className="w-4 h-4" /> Сохранить
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingUser(null); }}
+              <button type="button" onClick={resetForm}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all">
                 <X className="w-4 h-4" /> Отмена
               </button>
@@ -158,7 +133,7 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3 text-gray-400">{u.email}</td>
-                  <td className="px-5 py-3">{getRoleBadge(u.role)}</td>
+                  <td className="px-5 py-3"><RoleBadge role={u.role} /></td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex justify-end gap-2">
                       <button onClick={() => handleEdit(u)}

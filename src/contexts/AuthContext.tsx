@@ -6,12 +6,12 @@ import { STORAGE_KEYS, readJSON, writeJSON, removeItem } from '../utils/storage'
 
 interface AuthContextType {
   user: User | null;
+  users: User[];
   login: (email: string, password: string) => { success: boolean; error?: string };
   register: (username: string, email: string, password: string, role: Role) => { success: boolean; error?: string };
   logout: () => void;
   updateUser: (id: string, data: Partial<User>) => void;
   deleteUser: (id: string) => void;
-  getAllUsers: () => User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,22 +57,28 @@ function initializeDefaultUsers(): User[] {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    const users = readJSON<User[] | null>(STORAGE_KEYS.users, null);
-    if (!users || users.length === 0) {
-      initializeDefaultUsers();
+    let allUsers = readJSON<User[]>(STORAGE_KEYS.users, []);
+    if (allUsers.length === 0) {
+      allUsers = initializeDefaultUsers();
     }
+    setUsers(allUsers);
     const session = readJSON<string | null>(STORAGE_KEYS.session, null);
     if (session) {
-      const allUsers = readJSON<User[]>(STORAGE_KEYS.users, []);
       const found = allUsers.find((u: User) => u.id === session);
       if (found) setUser(found);
     }
   }, []);
 
+  // Единая точка записи списка пользователей: реактивный state + localStorage.
+  const persistUsers = (next: User[]) => {
+    writeJSON(STORAGE_KEYS.users, next);
+    setUsers(next);
+  };
+
   const login = (email: string, password: string) => {
-    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
     const found = users.find(u => u.email === email);
     if (!found) return { success: false, error: 'Пользователь не найден' };
     if (!verifyPassword(password, found.password_hash)) return { success: false, error: 'Неверный пароль' };
@@ -82,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = (username: string, email: string, password: string, role: Role) => {
-    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
     if (users.find(u => u.email === email)) return { success: false, error: 'Email уже зарегистрирован' };
     const newUser: User = {
       id: generateId(),
@@ -92,8 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       created_at: new Date().toISOString()
     };
-    users.push(newUser);
-    writeJSON(STORAGE_KEYS.users, users);
+    persistUsers([...users, newUser]);
     return { success: true };
   };
 
@@ -103,27 +107,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUser = (id: string, data: Partial<User>) => {
-    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
     const idx = users.findIndex(u => u.id === id);
     if (idx !== -1) {
-      users[idx] = { ...users[idx], ...data };
-      writeJSON(STORAGE_KEYS.users, users);
-      if (user?.id === id) setUser(users[idx]);
+      const updated = { ...users[idx], ...data };
+      const next = [...users];
+      next[idx] = updated;
+      persistUsers(next);
+      if (user?.id === id) setUser(updated);
     }
   };
 
   const deleteUser = (id: string) => {
-    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
-    const filtered = users.filter(u => u.id !== id);
-    writeJSON(STORAGE_KEYS.users, filtered);
-  };
-
-  const getAllUsers = (): User[] => {
-    return readJSON<User[]>(STORAGE_KEYS.users, []);
+    persistUsers(users.filter(u => u.id !== id));
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, deleteUser, getAllUsers }}>
+    <AuthContext.Provider value={{ user, users, login, register, logout, updateUser, deleteUser }}>
       {children}
     </AuthContext.Provider>
   );

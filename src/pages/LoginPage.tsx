@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Car, Lock, Mail, User } from 'lucide-react';
+import { Car, Mail, User } from 'lucide-react';
+import { Alert, IconField, PasswordField } from '../components/ui/primitives';
 
 export default function LoginPage() {
   const { login, register } = useAuth();
@@ -8,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -51,53 +53,36 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
-              <div className="relative">
-                <User className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Имя пользователя"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-                  required
-                />
-              </div>
-            )}
-
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+              <IconField
+                icon={<User />}
+                type="text"
+                placeholder="Имя пользователя"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 required
               />
-            </div>
-
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
-              <input
-                type="password"
-                placeholder="Пароль"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-                required
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                {error}
-              </div>
             )}
-            {success && (
-              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-                {success}
-              </div>
-            )}
+
+            <IconField
+              icon={<Mail />}
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+
+            <PasswordField
+              showPassword={showPassword}
+              onToggle={() => setShowPassword(v => !v)}
+              placeholder="Пароль"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+
+            <Alert kind="error" message={error} />
+            <Alert kind="success" message={success} />
 
             <button
               type="submit"

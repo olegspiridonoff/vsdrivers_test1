@@ -151,10 +151,16 @@ lucide-react, tailwindcss, vite, typescript.
 Проверки: `npm run typecheck` и `npm run build` — успешно (бандл 406 kB / gzip 131 kB).
 
 ### Этап 3 — UI-компонентизация (средний риск)
-1. Вынести примитивы: `<Field label>`, `<TextInput/>`, `<SelectInput/>`, `<Card>`, `<Badge role>`.
-2. Состояние пользователей поднять в `AuthContext` как реактивный `users: User[]`
-   (обновлять при login/register/update/delete), удалить `getAllUsers()`.
-3. Разделить `ReportsPage` на `ReportList` / `ReportForm` / `EditHistory` компоненты.
+1. ✅ Вынесены примитивы в `src/components/ui/primitives.tsx`: `<Field label>`, `<TextInput/>`,
+   `<SelectInput options>`, `<Card>`, `<RoleBadge role>` (+ `roleLabel`, `EmptyState`, `Alert`);
+   заменены дублирующиеся инлайновые стили полей/бейджей в UsersPage, ReportsPage, LoginPage.
+2. ✅ Состояние пользователей поднято в `AuthContext` как реактивный `users: User[]`
+   (единая точка записи `persistUsers` обновляет state + localStorage при register/update/delete);
+   `getAllUsers()` удалён — все потребители (Dashboard, Reports, Analytics, Users) читают `users`.
+3. ✅ `ReportsPage` разделён на `src/components/reports/ReportForm.tsx` (с типом `ReportDraft`
+   вместо `data: any`), `ReportList.tsx` и `EditHistory.tsx` (с локальным состоянием раскрытия
+   истории для каждого отчёта вместо общего `expandedLogs`).
+Проверки: `npm run typecheck` и `npm run build` — успешно (бандл 405 kB / gzip 132 kB).
 
 ### Этап 4 — Портирование на заявленный бэкенд (по README)
 1. Создать слой `src/api/*` (fetch-клиент) с теми же контрактами, что Context-ы,
