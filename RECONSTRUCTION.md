@@ -119,10 +119,19 @@ lucide-react, tailwindcss, vite, typescript.
 
 ## 5. План реконструкции (рекомендации)
 
-### Этап 1 — Очистка (низкий риск)
-1. Удалить 10 неиспользуемых зависимостей из `package.json`, перегенерировать lockfile.
-2. Заменить `substr` → `slice`; убрать избыточные `import React`.
-3. Удалить неиспользуемый тип `AuthState` либо применить его в `AuthContext`.
+### Этап 1 — Очистка (низкий риск) ✅ ВЫПОЛНЕН
+1. ✅ Удалено 12 неиспользуемых зависимостей (`@dnd-kit/*`, `@supabase/supabase-js`,
+   `canvas-confetti`, `react-chartjs-2`, `date-fns`, `framer-motion`, `recharts`, `uuid`,
+   `react-router-dom`, `@types/canvas-confetti`, `@types/uuid`), lockfile перегенерирован;
+   node_modules сократился со 101 до 59 пакетов. Оставлены только используемые:
+   `chart.js`, `lucide-react`, `react`, `react-dom`.
+2. ✅ Устаревший `String.prototype.substr()` убран полностью: генерация ID вынесена в
+   новый модуль `src/utils/id.ts` на базе `crypto.randomUUID()` (с фолбэком на `slice`);
+   `generateId()` удалён из `calculations.ts`, обновлены импорты в `AuthContext`,
+   `DataContext`, `demoData`.
+3. ✅ Избыточные `import React` удалены из 5 файлов (jsx-runtime), включая `main.tsx`.
+4. ✅ Неиспользуемый тип `AuthState` удалён из `src/types/index.ts`.
+Проверки: `npm run typecheck` и `npm run build` — успешно (бандл 406 kB / gzip 131 kB).
 
 ### Этап 2 — Централизация домена (средний риск)
 1. Ввести константы тарифов:
