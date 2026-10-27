@@ -1,4 +1,5 @@
 import { WeeklyReport } from '../types';
+import { generateId } from './id';
 
 export function generateDemoData(): Partial<WeeklyReport>[] {
   const now = new Date();
@@ -51,7 +52,7 @@ export function initializeDemoData() {
   const now = new Date().toISOString();
   
   const fullReports: WeeklyReport[] = demoReports.map(r => ({
-    id: Math.random().toString(36).substr(2, 9),
+    id: generateId(),
     user_id: r.user_id!,
     year: r.year!,
     week_number: r.week_number!,

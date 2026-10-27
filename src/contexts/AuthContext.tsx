@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Role } from '../types';
-import { hashPassword, verifyPassword, generateId } from '../utils/calculations';
+import { hashPassword, verifyPassword } from '../utils/calculations';
+import { generateId } from '../utils/id';
 
 interface AuthContextType {
   user: User | null;

@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { WeeklyReport, ReportEditLog } from '../types';
-import { generateId } from '../utils/calculations';
+import { generateId } from '../utils/id';
 import { initializeDemoData } from '../utils/demoData';
 
 interface DataContextType {
