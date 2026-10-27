@@ -35,8 +35,3 @@ export interface ReportEditLog {
   new_value: string;
   changed_at: string;
 }
-
-export interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-}

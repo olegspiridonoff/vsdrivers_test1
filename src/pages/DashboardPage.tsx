@@ -1,14 +1,13 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { TrendingUp, Users, FileText, DollarSign } from 'lucide-react';
-import { formatCurrency } from '../utils/calculations';
+import { formatCurrency, payoutBySource } from '../utils/calculations';
 import { User } from '../types';
 
 export default function DashboardPage() {
-  const { user, getAllUsers } = useAuth();
+  const { user, users } = useAuth();
   const { reports } = useData();
-  const users = getAllUsers();
 
   const stats = useMemo(() => {
     const userReports = user?.role === 'driver'
@@ -17,8 +16,13 @@ export default function DashboardPage() {
 
     const totalPayout = userReports.reduce((sum, r) => sum + r.total_driver_payout, 0);
     const avgPayout = userReports.length > 0 ? totalPayout / userReports.length : 0;
-    const totalWheely = userReports.reduce((sum, r) => sum + r.wheely_gross * 0.3, 0);
-    const totalYandex = userReports.reduce((sum, r) => sum + r.yandex_gross * 0.35, 0);
+    let totalWheely = 0;
+    let totalYandex = 0;
+    for (const r of userReports) {
+      const b = payoutBySource(r);
+      totalWheely += b.wheely;
+      totalYandex += b.yandex;
+    }
 
     return { totalPayout, avgPayout, totalWheely, totalYandex, reportCount: userReports.length };
   }, [reports, user]);

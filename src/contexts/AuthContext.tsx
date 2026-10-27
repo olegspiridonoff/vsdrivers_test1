@@ -1,130 +1,101 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Role } from '../types';
-import { hashPassword, verifyPassword, generateId } from '../utils/calculations';
+import { usersApi, getToken, setToken } from '../api';
+import type { MutationResult } from '../api';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => { success: boolean; error?: string };
-  register: (username: string, email: string, password: string, role: Role) => { success: boolean; error?: string };
+  users: User[];
+  /** Данные (список пользователей/сессия) ещё загружаются через API-слой. */
+  loading: boolean;
+  login: (email: string, password: string) => Promise<MutationResult>;
+  register: (username: string, email: string, password: string, role: Role) => Promise<MutationResult>;
   logout: () => void;
-  updateUser: (id: string, data: Partial<User>) => void;
-  deleteUser: (id: string) => void;
-  getAllUsers: () => User[];
+  updateUser: (id: string, data: Partial<User>) => Promise<MutationResult>;
+  deleteUser: (id: string) => Promise<MutationResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'taxi_users';
-const SESSION_KEY = 'taxi_session';
-
-function initializeDefaultUsers(): User[] {
-  const users: User[] = [
-    {
-      id: 'admin_1',
-      username: 'Администратор',
-      email: 'admin@taxi.ru',
-      password_hash: hashPassword('admin123'),
-      role: 'admin',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'manager_1',
-      username: 'Руководитель',
-      email: 'manager@taxi.ru',
-      password_hash: hashPassword('manager123'),
-      role: 'manager',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'driver_1',
-      username: 'Иванов И.И.',
-      email: 'driver1@taxi.ru',
-      password_hash: hashPassword('driver123'),
-      role: 'driver',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'driver_2',
-      username: 'Петров П.П.',
-      email: 'driver2@taxi.ru',
-      password_hash: hashPassword('driver123'),
-      role: 'driver',
-      created_at: new Date().toISOString()
-    }
-  ];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-  return users;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Загрузка пользователей и восстановление сессии идут через API-слой:
+  // mock → localStorage (поведение прежнее), rest → PHP+PDO бэкенд.
   useEffect(() => {
-    const users = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (!users || users.length === 0) {
-      initializeDefaultUsers();
-    }
-    const session = localStorage.getItem(SESSION_KEY);
-    if (session) {
-      const allUsers = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      const found = allUsers.find((u: User) => u.id === session);
-      if (found) setUser(found);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const allUsers = await usersApi.list();
+        if (cancelled) return;
+        setUsers(allUsers);
+        const token = getToken();
+        if (token) {
+          const found = allUsers.find(u => u.id === token);
+          if (found) setUser(found);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const login = (email: string, password: string) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const found = users.find(u => u.email === email);
-    if (!found) return { success: false, error: 'Пользователь не найден' };
-    if (!verifyPassword(password, found.password_hash)) return { success: false, error: 'Неверный пароль' };
-    setUser(found);
-    localStorage.setItem(SESSION_KEY, found.id);
-    return { success: true };
+  const refreshUsers = async () => {
+    setUsers(await usersApi.list());
   };
 
-  const register = (username: string, email: string, password: string, role: Role) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (users.find(u => u.email === email)) return { success: false, error: 'Email уже зарегистрирован' };
-    const newUser: User = {
-      id: generateId(),
-      username,
-      email,
-      password_hash: hashPassword(password),
-      role,
-      created_at: new Date().toISOString()
-    };
-    users.push(newUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-    return { success: true };
+  const login = async (email: string, password: string): Promise<MutationResult> => {
+    const result = await usersApi.login(email, password);
+    if (result.success && result.user) {
+      setUser(result.user);
+      setToken(result.token ?? null);
+    }
+    return { success: result.success, error: result.error };
+  };
+
+  const register = async (
+    username: string,
+    email: string,
+    password: string,
+    role: Role
+  ): Promise<MutationResult> => {
+    const result = await usersApi.register(username, email, password, role);
+    if (result.success) await refreshUsers();
+    return result;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(SESSION_KEY);
+    setToken(null);
   };
 
-  const updateUser = (id: string, data: Partial<User>) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const idx = users.findIndex(u => u.id === id);
-    if (idx !== -1) {
-      users[idx] = { ...users[idx], ...data };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-      if (user?.id === id) setUser(users[idx]);
+  const updateUser = async (id: string, data: Partial<User>): Promise<MutationResult> => {
+    const result = await usersApi.update(id, data);
+    if (result.success) {
+      await refreshUsers();
+      setUser(prev => (prev && prev.id === id ? { ...prev, ...data } : prev));
     }
+    return result;
   };
 
-  const deleteUser = (id: string) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const filtered = users.filter(u => u.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-  };
-
-  const getAllUsers = (): User[] => {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const deleteUser = async (id: string): Promise<MutationResult> => {
+    const result = await usersApi.remove(id);
+    if (result.success) {
+      await refreshUsers();
+      setUser(prev => (prev && prev.id === id ? null : prev));
+    }
+    return result;
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, deleteUser, getAllUsers }}>
+    <AuthContext.Provider
+      value={{ user, users, loading, login, register, logout, updateUser, deleteUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

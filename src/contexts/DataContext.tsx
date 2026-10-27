@@ -1,14 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { WeeklyReport, ReportEditLog } from '../types';
-import { generateId } from '../utils/calculations';
-import { initializeDemoData } from '../utils/demoData';
+import { reportsApi } from '../api';
+import type { MutationResult, NewReport } from '../api';
 
 interface DataContextType {
   reports: WeeklyReport[];
   editLogs: ReportEditLog[];
-  addReport: (report: Omit<WeeklyReport, 'id' | 'created_at' | 'updated_at'>) => { success: boolean; error?: string };
-  updateReport: (id: string, data: Partial<WeeklyReport>, changedByUserId: string) => void;
-  deleteReport: (id: string) => void;
+  /** Отчёты и журнал ещё загружаются через API-слой. */
+  loading: boolean;
+  addReport: (report: NewReport) => Promise<MutationResult>;
+  updateReport: (id: string, data: Partial<WeeklyReport>, changedByUserId: string) => Promise<MutationResult>;
+  deleteReport: (id: string) => Promise<MutationResult>;
   getReportById: (id: string) => WeeklyReport | undefined;
   getReportsByUser: (userId: string) => WeeklyReport[];
   getEditLogsByReport: (reportId: string) => ReportEditLog[];
@@ -16,84 +18,55 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const REPORTS_KEY = 'taxi_reports';
-const LOGS_KEY = 'taxi_edit_logs';
-
 export function DataProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<WeeklyReport[]>([]);
   const [editLogs, setEditLogs] = useState<ReportEditLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Первичная загрузка через API-слой (mock → localStorage + демо-данные).
   useEffect(() => {
-    initializeDemoData();
-    const stored = localStorage.getItem(REPORTS_KEY);
-    if (stored) setReports(JSON.parse(stored));
-    const logs = localStorage.getItem(LOGS_KEY);
-    if (logs) setEditLogs(JSON.parse(logs));
+    let cancelled = false;
+    (async () => {
+      try {
+        const [r, l] = await Promise.all([reportsApi.listReports(), reportsApi.listEditLogs()]);
+        if (cancelled) return;
+        setReports(r);
+        setEditLogs(l);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const persistReports = (data: WeeklyReport[]) => {
-    setReports(data);
-    localStorage.setItem(REPORTS_KEY, JSON.stringify(data));
+  const refresh = async () => {
+    const [r, l] = await Promise.all([reportsApi.listReports(), reportsApi.listEditLogs()]);
+    setReports(r);
+    setEditLogs(l);
   };
 
-  const persistLogs = (data: ReportEditLog[]) => {
-    setEditLogs(data);
-    localStorage.setItem(LOGS_KEY, JSON.stringify(data));
+  const addReport = async (report: NewReport): Promise<MutationResult> => {
+    const result = await reportsApi.addReport(report);
+    if (result.success) await refresh();
+    return result;
   };
 
-  const addReport = (report: Omit<WeeklyReport, 'id' | 'created_at' | 'updated_at'>) => {
-    const existing = reports.find(
-      r => r.user_id === report.user_id && r.year === report.year && r.week_number === report.week_number
-    );
-    if (existing) return { success: false, error: 'Отчёт за эту неделю уже существует' };
-
-    const newReport: WeeklyReport = {
-      ...report,
-      id: generateId(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    persistReports([...reports, newReport]);
-    return { success: true };
+  const updateReport = async (
+    id: string,
+    data: Partial<WeeklyReport>,
+    changedByUserId: string
+  ): Promise<MutationResult> => {
+    const result = await reportsApi.updateReport(id, data, changedByUserId);
+    if (result.success) await refresh();
+    return result;
   };
 
-  const updateReport = (id: string, data: Partial<WeeklyReport>, changedByUserId: string) => {
-    const report = reports.find(r => r.id === id);
-    if (!report) return;
-
-    const newLogs: ReportEditLog[] = [];
-    const fields: (keyof WeeklyReport)[] = [
-      'wheely_gross', 'yandex_gross', 'own_rent_gross', 'hourly_rent_hours',
-      'compensations', 'bonuses', 'deductions', 'total_driver_payout'
-    ];
-
-    fields.forEach(field => {
-      if (data[field] !== undefined && data[field] !== report[field]) {
-        newLogs.push({
-          id: generateId(),
-          report_id: id,
-          changed_by_user_id: changedByUserId,
-          field_name: field,
-          old_value: String(report[field]),
-          new_value: String(data[field]),
-          changed_at: new Date().toISOString()
-        });
-      }
-    });
-
-    if (newLogs.length > 0) {
-      persistLogs([...editLogs, ...newLogs]);
-    }
-
-    const updated = reports.map(r =>
-      r.id === id ? { ...r, ...data, updated_at: new Date().toISOString() } : r
-    );
-    persistReports(updated);
-  };
-
-  const deleteReport = (id: string) => {
-    persistReports(reports.filter(r => r.id !== id));
-    persistLogs(editLogs.filter(l => l.report_id !== id));
+  const deleteReport = async (id: string): Promise<MutationResult> => {
+    const result = await reportsApi.deleteReport(id);
+    if (result.success) await refresh();
+    return result;
   };
 
   const getReportById = (id: string) => reports.find(r => r.id === id);
@@ -102,7 +75,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      reports, editLogs, addReport, updateReport, deleteReport,
+      reports, editLogs, loading, addReport, updateReport, deleteReport,
       getReportById, getReportsByUser, getEditLogsByReport
     }}>
       {children}
