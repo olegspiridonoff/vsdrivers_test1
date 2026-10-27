@@ -277,9 +277,10 @@ $login = Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/auth/logi
   -ContentType "application/json" -Body '{"email":"admin@taxi.ru","password":"admin123"}'
 $hdr = @{ Authorization = "Bearer $($login.token)" }
 
+# поля API — в snake_case; total_driver_payout сервер считает сам по тарифам
 Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/reports -Headers $hdr `
   -ContentType "application/json" `
-  -Body '{"weekNumber":43,"year":2026,"wheelyGross":20000,"yandexGross":15000,"ownRentGross":5000,"hourlyRentHours":0,"compensations":0,"bonuses":0,"deductions":0,"totalDriverPayout":0}'
+  -Body '{"user_id":1,"year":2026,"week_number":43,"wheely_gross":20000,"yandex_gross":15000,"own_rent_gross":5000,"hourly_rent_hours":0,"compensations":0,"bonuses":0,"deductions":0}'
 
 Invoke-RestMethod -Uri http://localhost:8080/api/reports -Headers $hdr   # список должен содержать созданный отчёт
 ```
