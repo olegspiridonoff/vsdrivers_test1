@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { WeeklyReport } from '../types';
-import { calculateDriverPayout, getWeekRange, formatDate, formatCurrency, formatDateTime } from '../utils/calculations';
+import { PAYOUT_RATES, calculateDriverPayout, getWeekRange, getWeekNumber, getAvailableYears, formatDate, formatCurrency, formatDateTime } from '../utils/calculations';
 import { Plus, ChevronDown, ChevronUp, History, Edit2, Trash2, AlertCircle } from 'lucide-react';
 
 interface ReportFormProps {
@@ -14,7 +14,7 @@ interface ReportFormProps {
 
 function ReportForm({ report, userId, onSave, onCancel }: ReportFormProps) {
   const currentYear = new Date().getFullYear();
-  const currentWeek = Math.ceil(((new Date().getTime() - new Date(currentYear, 0, 1).getTime()) / 86400000 + 1) / 7);
+  const currentWeek = getWeekNumber(new Date());
 
   const [year, setYear] = useState<number>(report?.year || currentYear);
   const [weekNumber, setWeekNumber] = useState<number>(report?.week_number || currentWeek);
@@ -26,9 +26,15 @@ function ReportForm({ report, userId, onSave, onCancel }: ReportFormProps) {
   const [bonuses, setBonuses] = useState<number>(report?.bonuses || 0);
   const [deductions, setDeductions] = useState<number>(report?.deductions || 0);
 
-  const totalPayout = calculateDriverPayout(
-    wheelyGross, yandexGross, ownRentGross, hourlyRentHours, compensations, bonuses, deductions
-  );
+  const totalPayout = calculateDriverPayout({
+    wheely_gross: wheelyGross,
+    yandex_gross: yandexGross,
+    own_rent_gross: ownRentGross,
+    hourly_rent_hours: hourlyRentHours,
+    compensations,
+    bonuses,
+    deductions,
+  });
 
   const weekRange = getWeekRange(year, weekNumber);
   const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
@@ -59,7 +65,7 @@ function ReportForm({ report, userId, onSave, onCancel }: ReportFormProps) {
             <label className="text-gray-400 text-sm mb-1 block">Год</label>
             <select value={year} onChange={e => setYear(Number(e.target.value))}
               className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50">
-              {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+              {getAvailableYears().map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div>
@@ -82,25 +88,25 @@ function ReportForm({ report, userId, onSave, onCancel }: ReportFormProps) {
             <label className="text-gray-400 text-sm mb-1 block">Общий доход Wheely (₽)</label>
             <input type="number" value={wheelyGross} onChange={e => setWheelyGross(Number(e.target.value))}
               className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" min="0" />
-            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(wheelyGross * 0.30)} (30%)</p>
+            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(wheelyGross * PAYOUT_RATES.wheelyShare)} ({PAYOUT_RATES.wheelyShare * 100}%)</p>
           </div>
           <div>
             <label className="text-gray-400 text-sm mb-1 block">Общий доход Яндекс (₽)</label>
             <input type="number" value={yandexGross} onChange={e => setYandexGross(Number(e.target.value))}
               className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" min="0" />
-            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(yandexGross * 0.35)} (35%)</p>
+            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(yandexGross * PAYOUT_RATES.yandexShare)} ({PAYOUT_RATES.yandexShare * 100}%)</p>
           </div>
           <div>
             <label className="text-gray-400 text-sm mb-1 block">Собственная аренда (₽)</label>
             <input type="number" value={ownRentGross} onChange={e => setOwnRentGross(Number(e.target.value))}
               className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" min="0" />
-            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(ownRentGross * 0.30)} (30%)</p>
+            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(ownRentGross * PAYOUT_RATES.ownRentShare)} ({PAYOUT_RATES.ownRentShare * 100}%)</p>
           </div>
           <div>
             <label className="text-gray-400 text-sm mb-1 block">Почасовая аренда (часы)</label>
             <input type="number" value={hourlyRentHours} onChange={e => setHourlyRentHours(Number(e.target.value))}
               className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" min="0" />
-            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(hourlyRentHours * 500)} (500₽/час)</p>
+            <p className="text-green-400 text-xs mt-1">Водителю: {formatCurrency(hourlyRentHours * PAYOUT_RATES.hourlyRentRate)} ({PAYOUT_RATES.hourlyRentRate}₽/час)</p>
           </div>
         </div>
       </div>

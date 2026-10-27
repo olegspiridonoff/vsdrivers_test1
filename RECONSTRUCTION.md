@@ -133,15 +133,22 @@ lucide-react, tailwindcss, vite, typescript.
 4. ✅ Неиспользуемый тип `AuthState` удалён из `src/types/index.ts`.
 Проверки: `npm run typecheck` и `npm run build` — успешно (бандл 406 kB / gzip 131 kB).
 
-### Этап 2 — Централизация домена (средний риск)
-1. Ввести константы тарифов:
-   ```ts
-   export const TARIFF = { WHEELY: 0.30, YANDEX: 0.35, OWN_RENT: 0.30, HOURLY_RATE: 500 } as const;
-   ```
-   и заменить все инлайн-умножения в Dashboard/Analytics/Reports/demoData на
-   функции-селекторы (`payoutBySource(report)`), чтобы формула жила в одном месте.
-2. Список годов генерировать из текущей даты (`currentYear ± 2`).
-3. Безопасный хелпер `safeParse<T>(raw, fallback)`.
+### Этап 2 — Централизация домена (средний риск) — ✅ ВЫПОЛНЕНО
+1. ✅ Введены константы тарифов `PAYOUT_RATES` в `src/utils/calculations.ts`
+   (`wheelyShare: 0.30`, `yandexShare: 0.35`, `ownRentShare: 0.30`, `hourlyRentRate: 500`);
+   все инлайн-умножения заменены: `calculateDriverPayout` принимает объект `PayoutInput`,
+   добавлен селектор `payoutBySource(report)` (разложение по источникам), который используют
+   DashboardPage, AnalyticsPage (pie/bar-графики) и ReportsPage (подсказки в форме);
+   demoData больше не дублирует формулу, а вызывает `calculateDriverPayout`.
+   Формула даёт идентичный результат (золотая проверка: old === new).
+2. ✅ Список годов генерируется из текущей даты: `getAvailableYears()` (текущий ± 2),
+   захардкоженный `[2024, 2025, 2026]` удалён; номер недели в ReportsPage/demoData
+   считается через единый `getWeekNumber()`.
+3. ✅ Безопасный хелпер `readJSON<T>(key, fallback)` (аналог `safeParse`) в новом модуле
+   `src/utils/storage.ts`: все ключи localStorage централизованы в `STORAGE_KEYS`
+   (`users`, `session`, `reports`, `editLogs`), контексты и утилиты больше не обращаются
+   к `localStorage`/`JSON.parse` напрямую; повреждённые данные не роняют приложение.
+Проверки: `npm run typecheck` и `npm run build` — успешно (бандл 406 kB / gzip 131 kB).
 
 ### Этап 3 — UI-компонентизация (средний риск)
 1. Вынести примитивы: `<Field label>`, `<TextInput/>`, `<SelectInput/>`, `<Card>`, `<Badge role>`.

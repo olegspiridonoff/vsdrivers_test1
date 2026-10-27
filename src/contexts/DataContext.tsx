@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { WeeklyReport, ReportEditLog } from '../types';
 import { generateId } from '../utils/id';
 import { initializeDemoData } from '../utils/demoData';
+import { STORAGE_KEYS, readJSON, writeJSON } from '../utils/storage';
 
 interface DataContextType {
   reports: WeeklyReport[];
@@ -16,29 +17,24 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const REPORTS_KEY = 'taxi_reports';
-const LOGS_KEY = 'taxi_edit_logs';
-
 export function DataProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<WeeklyReport[]>([]);
   const [editLogs, setEditLogs] = useState<ReportEditLog[]>([]);
 
   useEffect(() => {
     initializeDemoData();
-    const stored = localStorage.getItem(REPORTS_KEY);
-    if (stored) setReports(JSON.parse(stored));
-    const logs = localStorage.getItem(LOGS_KEY);
-    if (logs) setEditLogs(JSON.parse(logs));
+    setReports(readJSON<WeeklyReport[]>(STORAGE_KEYS.reports, []));
+    setEditLogs(readJSON<ReportEditLog[]>(STORAGE_KEYS.editLogs, []));
   }, []);
 
   const persistReports = (data: WeeklyReport[]) => {
     setReports(data);
-    localStorage.setItem(REPORTS_KEY, JSON.stringify(data));
+    writeJSON(STORAGE_KEYS.reports, data);
   };
 
   const persistLogs = (data: ReportEditLog[]) => {
     setEditLogs(data);
-    localStorage.setItem(LOGS_KEY, JSON.stringify(data));
+    writeJSON(STORAGE_KEYS.editLogs, data);
   };
 
   const addReport = (report: Omit<WeeklyReport, 'id' | 'created_at' | 'updated_at'>) => {

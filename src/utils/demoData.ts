@@ -1,10 +1,12 @@
 import { WeeklyReport } from '../types';
 import { generateId } from './id';
+import { calculateDriverPayout, getWeekNumber } from './calculations';
+import { STORAGE_KEYS, readJSON, writeJSON } from './storage';
 
 export function generateDemoData(): Partial<WeeklyReport>[] {
   const now = new Date();
   const year = now.getFullYear();
-  const currentWeek = Math.ceil(((now.getTime() - new Date(year, 0, 1).getTime()) / 86400000 + 1) / 7);
+  const currentWeek = getWeekNumber(now);
   
   const reports: Partial<WeeklyReport>[] = [];
   
@@ -44,13 +46,12 @@ export function generateDemoData(): Partial<WeeklyReport>[] {
 }
 
 export function initializeDemoData() {
-  const reportsKey = 'taxi_reports';
-  const existing = localStorage.getItem(reportsKey);
-  if (existing && JSON.parse(existing).length > 0) return;
-  
+  const existing = readJSON<WeeklyReport[]>(STORAGE_KEYS.reports, []);
+  if (existing.length > 0) return;
+
   const demoReports = generateDemoData();
   const now = new Date().toISOString();
-  
+
   const fullReports: WeeklyReport[] = demoReports.map(r => ({
     id: generateId(),
     user_id: r.user_id!,
@@ -64,17 +65,19 @@ export function initializeDemoData() {
     bonuses: Math.round(r.bonuses!),
     deductions: Math.round(r.deductions!),
     total_driver_payout: Math.round(
-      r.wheely_gross! * 0.30 +
-      r.yandex_gross! * 0.35 +
-      r.own_rent_gross! * 0.30 +
-      r.hourly_rent_hours! * 500 +
-      r.compensations! +
-      r.bonuses! -
-      r.deductions!
+      calculateDriverPayout({
+        wheely_gross: r.wheely_gross!,
+        yandex_gross: r.yandex_gross!,
+        own_rent_gross: r.own_rent_gross!,
+        hourly_rent_hours: r.hourly_rent_hours!,
+        compensations: r.compensations!,
+        bonuses: r.bonuses!,
+        deductions: r.deductions!,
+      })
     ),
     created_at: now,
     updated_at: now
   }));
-  
-  localStorage.setItem(reportsKey, JSON.stringify(fullReports));
+
+  writeJSON(STORAGE_KEYS.reports, fullReports);
 }

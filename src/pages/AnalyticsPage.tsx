@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-import { formatCurrency } from '../utils/calculations';
+import { formatCurrency, payoutBySource } from '../utils/calculations';
 import { Download, Filter } from 'lucide-react';
 import { exportToCSV } from '../utils/calculations';
 import { Chart, registerables } from 'chart.js';
@@ -86,17 +86,24 @@ export default function AnalyticsPage() {
     if (!pieChartRef.current) return;
     if (pieChartInstance.current) pieChartInstance.current.destroy();
 
-    const totalWheely = filteredReports.reduce((s, r) => s + r.wheely_gross * 0.3, 0);
-    const totalYandex = filteredReports.reduce((s, r) => s + r.yandex_gross * 0.35, 0);
-    const totalOwnRent = filteredReports.reduce((s, r) => s + r.own_rent_gross * 0.3, 0);
-    const totalHourly = filteredReports.reduce((s, r) => s + r.hourly_rent_hours * 500, 0);
+    const totals = filteredReports.reduce(
+      (acc, r) => {
+        const b = payoutBySource(r);
+        acc.wheely += b.wheely;
+        acc.yandex += b.yandex;
+        acc.ownRent += b.ownRent;
+        acc.hourlyRent += b.hourlyRent;
+        return acc;
+      },
+      { wheely: 0, yandex: 0, ownRent: 0, hourlyRent: 0 }
+    );
 
     pieChartInstance.current = new Chart(pieChartRef.current, {
       type: 'doughnut',
       data: {
         labels: ['Wheely', 'Яндекс', 'Собств. аренда', 'Почасовая'],
         datasets: [{
-          data: [totalWheely, totalYandex, totalOwnRent, totalHourly],
+          data: [totals.wheely, totals.yandex, totals.ownRent, totals.hourlyRent],
           backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'],
           borderColor: '#1f2937',
           borderWidth: 2
@@ -120,9 +127,10 @@ export default function AnalyticsPage() {
     if (barChartInstance.current) barChartInstance.current.destroy();
 
     const labels = filteredReports.map(r => `Нед. ${r.week_number}`);
-    const wheelyData = filteredReports.map(r => r.wheely_gross * 0.3);
-    const yandexData = filteredReports.map(r => r.yandex_gross * 0.35);
-    const rentData = filteredReports.map(r => r.own_rent_gross * 0.3 + r.hourly_rent_hours * 500);
+    const breakdowns = filteredReports.map(payoutBySource);
+    const wheelyData = breakdowns.map(b => b.wheely);
+    const yandexData = breakdowns.map(b => b.yandex);
+    const rentData = breakdowns.map(b => b.ownRent + b.hourlyRent);
 
     barChartInstance.current = new Chart(barChartRef.current, {
       type: 'bar',

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { User, Role } from '../types';
 import { hashPassword, verifyPassword } from '../utils/calculations';
 import { generateId } from '../utils/id';
+import { STORAGE_KEYS, readJSON, writeJSON, removeItem } from '../utils/storage';
 
 interface AuthContextType {
   user: User | null;
@@ -14,9 +15,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const STORAGE_KEY = 'taxi_users';
-const SESSION_KEY = 'taxi_session';
 
 function initializeDefaultUsers(): User[] {
   const users: User[] = [
@@ -53,7 +51,7 @@ function initializeDefaultUsers(): User[] {
       created_at: new Date().toISOString()
     }
   ];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+  writeJSON(STORAGE_KEYS.users, users);
   return users;
 }
 
@@ -61,30 +59,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const users = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const users = readJSON<User[] | null>(STORAGE_KEYS.users, null);
     if (!users || users.length === 0) {
       initializeDefaultUsers();
     }
-    const session = localStorage.getItem(SESSION_KEY);
+    const session = readJSON<string | null>(STORAGE_KEYS.session, null);
     if (session) {
-      const allUsers = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const allUsers = readJSON<User[]>(STORAGE_KEYS.users, []);
       const found = allUsers.find((u: User) => u.id === session);
       if (found) setUser(found);
     }
   }, []);
 
   const login = (email: string, password: string) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
     const found = users.find(u => u.email === email);
     if (!found) return { success: false, error: 'Пользователь не найден' };
     if (!verifyPassword(password, found.password_hash)) return { success: false, error: 'Неверный пароль' };
     setUser(found);
-    localStorage.setItem(SESSION_KEY, found.id);
+    writeJSON(STORAGE_KEYS.session, found.id);
     return { success: true };
   };
 
   const register = (username: string, email: string, password: string, role: Role) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
     if (users.find(u => u.email === email)) return { success: false, error: 'Email уже зарегистрирован' };
     const newUser: User = {
       id: generateId(),
@@ -95,33 +93,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       created_at: new Date().toISOString()
     };
     users.push(newUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    writeJSON(STORAGE_KEYS.users, users);
     return { success: true };
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(SESSION_KEY);
+    removeItem(STORAGE_KEYS.session);
   };
 
   const updateUser = (id: string, data: Partial<User>) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
     const idx = users.findIndex(u => u.id === id);
     if (idx !== -1) {
       users[idx] = { ...users[idx], ...data };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+      writeJSON(STORAGE_KEYS.users, users);
       if (user?.id === id) setUser(users[idx]);
     }
   };
 
   const deleteUser = (id: string) => {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const users = readJSON<User[]>(STORAGE_KEYS.users, []);
     const filtered = users.filter(u => u.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    writeJSON(STORAGE_KEYS.users, filtered);
   };
 
   const getAllUsers = (): User[] => {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return readJSON<User[]>(STORAGE_KEYS.users, []);
   };
 
   return (
